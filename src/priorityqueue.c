@@ -11,12 +11,6 @@ static int _index_of(PriorityQueue *p, void *o);
 static int _remove_at(PriorityQueue *p, size_t i);
 static int _shrink(PriorityQueue *p);
 
-PriorityQueue* new_pq(size_t capacity, int (*comparator)(void *, void *));
-void free_pq(PriorityQueue *p);
-int enqueue(PriorityQueue *p, void *obj);
-int remove_element(PriorityQueue *p, void *obj);
-void* dequeue(PriorityQueue *p);
-
 PriorityQueue* new_pq(size_t capacity, int (*comparator)(void *, void *)) {
 	PriorityQueue* p = malloc(sizeof (PriorityQueue));
 	void* queue = malloc(capacity * sizeof (void *));
@@ -35,7 +29,7 @@ void free_pq(PriorityQueue *p) {
 	free(p);
 }
 
-int grow(PriorityQueue *p) {
+static int _grow(PriorityQueue *p) {
 	int s;
 	if (p->capacity == 0) {
 		s = DEF_SIZE;
@@ -49,7 +43,7 @@ int grow(PriorityQueue *p) {
 
 int enqueue(PriorityQueue *p, void* obj) {
 	if (p->size >= p->capacity) {
-		if (grow(p)) {
+		if (_grow(p)) {
 			return ERR;
 		}
 	}
