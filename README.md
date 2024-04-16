@@ -1,9 +1,7 @@
 Algorithms & data structures
 ===
 
-Some algorithm related stuff.
-
-1. Priority queue(heap).
-
-2. CRC32 algorithm.
+- Fast fourier transform
+- Priority queue(heap)
+- CRC32 algorithm
 
