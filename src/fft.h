@@ -21,6 +21,11 @@ FFT dft(double *v, uint32_t len);
 FFT fft(double *v, uint32_t len);
 
 /*
+ * non-recursive version of fft
+ */
+FFT fftn(double *v, uint32_t len);
+
+/*
  * inverse FFT.
  */
 double *ifft(FFT c);

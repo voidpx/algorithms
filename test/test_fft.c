@@ -44,9 +44,13 @@ static void test_fft(double *data, uint32_t n, FFT p) {
 	FFT pf = fft(data, n);
 //	print_comp("FFT", pf.value, pf.len);
 
+	FFT nf = fftn(data, n);
+
 	assert(p.len == pf.len);
 	for (int i = 0; i < p.len; ++i) {
 		assert(abs(creal(p.value[i]) - creal(pf.value[i])) < 10e-8 && abs(cimag(p.value[i]) - cimag(pf.value[i])) < 10e-8);
+
+		assert(abs(creal(p.value[i]) - creal(nf.value[i])) < 10e-8 && abs(cimag(p.value[i]) - cimag(nf.value[i])) < 10e-8);
 	}
 
 	double *d = ifft(pf);
@@ -59,6 +63,7 @@ static void test_fft(double *data, uint32_t n, FFT p) {
 
 	free(d);
 	free(pf.value);
+	free(nf.value);
 }
 
 typedef union TR {
@@ -66,20 +71,16 @@ typedef union TR {
 	double * real;
 } TR;
 
-typedef struct func {
-	TR (*f)(va_list);
-} func;
-
-static TR time_it(char *s, func f, ...) {
+static TR time_it(char *s, TR (*f)(va_list), ...) {
 	struct timespec t0, t1;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &t0);
 	va_list va;
 	va_start(va, f);
-	TR r = f.f(va);
+	TR r = f(va);
 	va_end(va);
 	clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
 	double t = (t1.tv_sec - t0.tv_sec) + ((double)(t1.tv_nsec - t0.tv_nsec))/1.0e+9;
-	printf("%s, time: %.6fs\n", s, t);
+	printf("%s, time: %.7fs\n", s, t);
 	return r;
 }
 
@@ -97,20 +98,27 @@ static TR fftf(va_list a) {
 	return (TR){tf(fft, a)};
 }
 
+static TR fftfn(va_list a) {
+	double *data = va_arg(a, double*);
+	uint32_t n =  va_arg(a, uint32_t);
+	return (TR){fftn(data, n)};
+}
+
 int main() {
 #define N 2000
 	struct timespec t0, t1;
 	double *data = test_data(N);
-	func df = {dftf};
-	TR dftr = time_it("DFT", df, data, (uint32_t)N);
+	TR dftr = time_it("DFT", dftf, data, (uint32_t)N);
 
 	// check correctness
 	test_fft(data, N, dftr.fft);
-
-	func ff = {fftf};
-	TR fftr = time_it("FFT", ff, data, (uint32_t)N);
-
 	free(dftr.fft.value);
+
+	TR fftr = time_it("FFT", fftf, data, (uint32_t)N);
 	free(fftr.fft.value);
+
+	TR fftn = time_it("FFTN", fftfn, data, (uint32_t)N);
+	free(fftn.fft.value);
+
 
 }

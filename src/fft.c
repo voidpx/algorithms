@@ -93,16 +93,51 @@ typedef struct R {
 	complex rkn2;
 } R;
 
-static R _fftr(V *v, C *c, uint32_t po2len, uint32_t k, uint32_t s, uint32_t m) {
-	if (m >= po2len) {
-		return (R){_v(v, s) * c->p[(s * k) % po2len], 0};
+/*
+ * calculate the DFT for frequency k.
+ */
+static R _fftr(V *v, C *c, uint32_t k, uint32_t s, uint32_t m) {
+	if (m >= c->n) {
+		return (R){_v(v, s), 0};
 	}
-	R ek = _fftr(v, c, po2len, k, s, m * 2);
-	R ok = _fftr(v, c, po2len, k, s + m, m *2);
-	return (R){ek.rk + ok.rk, m == 1 ? ek.rk - ok.rk : 0}; // only need first iteration for k + N/2
+	uint32_t m2 = m << 1;
+	R ek = _fftr(v, c, k, s, m2);
+	R ok = _fftr(v, c, k, s + m, m2);
+	complex t = ok.rk * c->p[(m * k) % c->n]; // twiddle factor
+	return (R){ek.rk + t, m == 1 ? ek.rk - t : 0}; // only need first iteration for k + N/2
 }
 
-static complex* _dft(V *v, uint32_t po2len) {
+static complex *_fftn(V *v, uint32_t po2len) {
+	if (!po2len) {
+		return NULL;
+	}
+	assert((po2len & po2len - 1) == 0);
+	C c = _c(po2len, -1);
+	if (!c.p) {
+		return NULL;
+	}
+	complex *p = calloc(po2len, sizeof(complex));
+	if (!p) {
+		return NULL;
+	}
+	for (int i=0; i < po2len/2; ++i) {
+		complex even = {0};
+		complex odd = {0};
+		for (int e = 0, o = 1; o < c.n; e+=2,o+=2) {
+			even += e==0? v->v[0] : (i == 0 ? v->v[e] : v->v[e] * c.p[(e * i) % po2len]);
+			odd += i==0? v->v[o] : v->v[o] * c.p[(o * i)  % po2len];
+		}
+		p[i] = (even + odd)/c.n;
+		p[i+po2len/2] = (even - odd)/c.n;
+	}
+	free(c.p);
+	return p;
+}
+
+/*
+ * plain DFT.
+ */
+static complex *_dft(V *v, uint32_t po2len) {
 	if (!po2len) {
 		return NULL;
 	}
@@ -116,8 +151,8 @@ static complex* _dft(V *v, uint32_t po2len) {
 		return NULL;
 	}
 	for (int i = 0; i < po2len; ++i) {
-		complex s = {0};
-		for (int j = 0; j < po2len; ++j) {
+		complex s = _v(v, 0);
+		for (int j = 1; j < po2len; ++j) {
 			s += _v(v, j) * c.p[(j * i) % po2len];
 		}
 		p[i] = s /= po2len;
@@ -139,8 +174,8 @@ static complex* _fft(V *v, uint32_t po2len, int dir) {
 	if (!p) {
 		return NULL;
 	}
-	for (int i=0; i < po2len / 2; ++i) {
-		R ak = _fftr(v, &c, po2len, i, 0, 1);
+	for (int i=0; i < po2len/2; ++i) {
+		R ak = _fftr(v, &c, i, 0, 1);
 		p[i] = dir == -1 ? ak.rk / po2len : ak.rk;
 		p[i + po2len/2] = dir == -1 ? ak.rkn2 / po2len : ak.rkn2;
 	}
@@ -171,6 +206,24 @@ FFT dft(double *v, uint32_t len) {
 	V val = {a, len};
 	uint32_t po2len = po2(len);
 	complex *r = _dft(&val, po2len);
+	if (!r) {
+		return (FFT){0};
+	}
+	free(a);
+	return (FFT){r, po2len};
+}
+
+/*
+ * FFT
+ */
+FFT fftn(double *v, uint32_t len) {
+	complex *a = _complexify(v, len);
+	if (!a) {
+		return (FFT){0};
+	}
+	V val = {a, len};
+	uint32_t po2len = po2(len);
+	complex *r = _fftn(&val, po2len);
 	if (!r) {
 		return (FFT){0};
 	}

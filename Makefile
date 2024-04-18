@@ -33,7 +33,7 @@ test:
 	@echo 'testing priority queue successful'
 	
 	@echo 'testing fft'
-	$(CC) $(CFLAGS) -g -o $(TEST_FFT) test/test_fft.c src/fft.c -lm
+	$(CC) -O3 -o $(TEST_FFT) test/test_fft.c src/fft.c -lm
 	chmod +x $(TEST_FFT) && $(TEST_FFT)
 	$(RM) $(TEST_FFT)
 	@echo 'testing fft successful'
